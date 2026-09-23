@@ -13,6 +13,7 @@ let lastRoutePath = "";
 let isHistoryNavigation = false;
 let audioContext = null;
 const playedSoundCues = new Set();
+const SESSION_KEY = "alibiNightSession";
 
 app.addEventListener("click", (event) => {
   const button = event.target.closest("button");
@@ -33,6 +34,10 @@ socket.on("state", (nextState) => {
 socket.on("connect_error", () => {
   notice = "Connection trouble. Refresh and try again.";
   render();
+});
+
+socket.on("connect", () => {
+  resumeSavedSession();
 });
 
 function emit(event, payload = {}) {
@@ -102,12 +107,16 @@ function renderHome() {
   app.querySelector("[data-action='create']").addEventListener("click", async () => {
     saveHomeForm();
     if (!validateName()) return render();
-    await emit("createRoom", { name: form.name });
+    const playerId = getOrCreatePlayerId();
+    const reply = await emit("createRoom", { name: form.name, playerId });
+    if (reply?.ok) saveSession(reply.code, reply.playerId);
   });
   app.querySelector("[data-action='join']").addEventListener("click", async () => {
     saveHomeForm();
     if (!validateName()) return render();
-    await emit("joinRoom", { name: form.name, code: form.code });
+    const playerId = getOrCreatePlayerId();
+    const reply = await emit("joinRoom", { name: form.name, code: form.code, playerId });
+    if (reply?.ok) saveSession(reply.code, reply.playerId);
   });
 }
 
@@ -406,6 +415,42 @@ function syncBrowserRoute() {
   lastRoutePath = route.path;
 }
 
+async function resumeSavedSession() {
+  const saved = readSession();
+  if (!saved?.code || !saved?.playerId) return;
+
+  const reply = await emit("resumeSession", {
+    code: saved.code,
+    playerId: saved.playerId
+  });
+
+  if (!reply?.ok) {
+    clearSession();
+  }
+}
+
+function getOrCreatePlayerId() {
+  const saved = readSession();
+  if (saved?.playerId) return saved.playerId;
+  return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function saveSession(code, playerId) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code, playerId }));
+}
+
+function readSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 function currentRoute() {
   if (!state.room) {
     return { path: "/", state: { phase: "home" } };
@@ -435,5 +480,4 @@ window.addEventListener("popstate", (event) => {
   }, 0);
 });
 
-syncBrowserRoute();
 render();
