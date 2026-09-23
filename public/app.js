@@ -314,6 +314,7 @@ function maybeStartRoleReveal() {
   if (shownRoleReveals.has(revealKey) || activeRoleReveal === revealKey) return;
 
   activeRoleReveal = revealKey;
+  playRoleRevealSound(me.role, revealKey);
   clearTimeout(roleRevealTimer);
   roleRevealTimer = setTimeout(() => {
     shownRoleReveals.add(revealKey);
@@ -379,6 +380,22 @@ function playWinChime() {
   playTone({ frequency: 523.25, duration: 0.16, type: "sine", gain: 0.055 });
   playTone({ frequency: 659.25, duration: 0.18, type: "sine", gain: 0.05, start: 0.13 });
   playTone({ frequency: 783.99, duration: 0.24, type: "triangle", gain: 0.045, start: 0.28 });
+}
+
+function playRoleRevealSound(role, revealKey) {
+  const cueKey = `${revealKey}:role-sound`;
+  if (playedSoundCues.has(cueKey)) return;
+  playedSoundCues.add(cueKey);
+
+  if (role === "Suspect") {
+    playTone({ frequency: 58, duration: 0.5, type: "sawtooth", gain: 0.07 });
+    playTone({ frequency: 87, duration: 0.38, type: "triangle", gain: 0.05, start: 0.05 });
+    playTone({ frequency: 174, duration: 0.16, type: "square", gain: 0.026, start: 0.2 });
+    return;
+  }
+
+  playTone({ frequency: 740, duration: 0.09, type: "triangle", gain: 0.045 });
+  playTone({ frequency: 988, duration: 0.12, type: "sine", gain: 0.04, start: 0.1 });
 }
 
 function syncBrowserRoute() {
