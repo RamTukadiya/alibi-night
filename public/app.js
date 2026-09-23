@@ -5,10 +5,14 @@ let state = { room: null, me: null };
 localStorage.removeItem("alibiName");
 let form = { name: "", code: "", alibi: "" };
 let notice = "";
+const shownRoleReveals = new Set();
+let activeRoleReveal = "";
+let roleRevealTimer = null;
 
 socket.on("state", (nextState) => {
   state = nextState;
   notice = "";
+  maybeStartRoleReveal();
   render();
 });
 
@@ -49,6 +53,7 @@ function render() {
   if (!state.room) return renderHome();
   const phase = state.room.phase;
   if (phase === "lobby") return renderLobby();
+  if (activeRoleReveal) return renderRoleReveal();
   if (phase === "alibi") return renderAlibi();
   if (phase === "reveal") return renderReveal();
   if (phase === "voting") return renderVoting();
@@ -142,6 +147,21 @@ function renderAlibi() {
     const reply = await emit("submitAlibi", { text: form.alibi });
     if (reply?.ok) form.alibi = "";
   });
+}
+
+function renderRoleReveal() {
+  const { me } = state;
+  const isSuspect = me.role === "Suspect";
+  page(`
+    <section class="roleRevealOverlay ${isSuspect ? "suspectIntro" : "detectiveIntro"}">
+      <div class="roleRevealCard">
+        <div class="roleIcon" aria-hidden="true">${isSuspect ? "!" : "⌕"}</div>
+        <p class="step">${isSuspect ? "Identity confirmed" : "Badge issued"}</p>
+        <h2>${isSuspect ? "You are the Suspect" : "You are a Detective"}</h2>
+        <p>${isSuspect ? "Stay calm. Invent an alibi. Escape the vote." : "Find the liar. Compare every alibi. Trust no loose thread."}</p>
+      </div>
+    </section>
+  `);
 }
 
 function renderReveal() {
@@ -263,6 +283,20 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#039;"
   })[char]);
+}
+
+function maybeStartRoleReveal() {
+  if (!state.room || !state.me || state.room.phase !== "alibi" || !state.me.role) return;
+  const revealKey = `${state.room.code}:${state.room.round}:${state.me.playerId}`;
+  if (shownRoleReveals.has(revealKey) || activeRoleReveal === revealKey) return;
+
+  activeRoleReveal = revealKey;
+  clearTimeout(roleRevealTimer);
+  roleRevealTimer = setTimeout(() => {
+    shownRoleReveals.add(revealKey);
+    activeRoleReveal = "";
+    render();
+  }, 2600);
 }
 
 render();
