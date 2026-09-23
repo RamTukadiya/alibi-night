@@ -2,7 +2,8 @@ const socket = io();
 const app = document.querySelector("#app");
 
 let state = { room: null, me: null };
-let form = { name: localStorage.getItem("alibiName") || "", code: "", alibi: "" };
+localStorage.removeItem("alibiName");
+let form = { name: "", code: "", alibi: "" };
 let notice = "";
 
 socket.on("state", (nextState) => {
@@ -80,12 +81,10 @@ function renderHome() {
   `);
   app.querySelector("[data-action='create']").addEventListener("click", async () => {
     saveHomeForm();
-    localStorage.setItem("alibiName", form.name);
     await emit("createRoom", { name: form.name });
   });
   app.querySelector("[data-action='join']").addEventListener("click", async () => {
     saveHomeForm();
-    localStorage.setItem("alibiName", form.name);
     await emit("joinRoom", { name: form.name, code: form.code });
   });
 }
