@@ -11,12 +11,21 @@ let roleRevealTimer = null;
 let routeOverride = "";
 let lastRoutePath = "";
 let isHistoryNavigation = false;
+let audioContext = null;
+const playedSoundCues = new Set();
+
+app.addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button || button.disabled) return;
+  playClick();
+});
 
 socket.on("state", (nextState) => {
   state = nextState;
   notice = "";
   if (!isHistoryNavigation) routeOverride = "";
   maybeStartRoleReveal();
+  maybePlayStateSound();
   syncBrowserRoute();
   render();
 });
@@ -311,6 +320,65 @@ function maybeStartRoleReveal() {
     activeRoleReveal = "";
     render();
   }, 2600);
+}
+
+function maybePlayStateSound() {
+  if (!state.room || state.room.roundResults.length === 0) return;
+  if (state.room.phase !== "roundResult" && state.room.phase !== "gameOver") return;
+
+  const result = state.room.roundResults.at(-1);
+  const cueKey = `${state.room.code}:${result.round}:${state.room.phase}:result`;
+  if (playedSoundCues.has(cueKey)) return;
+  playedSoundCues.add(cueKey);
+
+  setTimeout(playTensionSting, 120);
+  setTimeout(playWinChime, 780);
+}
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  audioContext ||= new AudioContextClass();
+  if (audioContext.state === "suspended") audioContext.resume();
+  return audioContext;
+}
+
+function playTone({ frequency, duration, type = "sine", gain = 0.08, start = 0 }) {
+  const context = getAudioContext();
+  if (!context) return;
+
+  const oscillator = context.createOscillator();
+  const volume = context.createGain();
+  const startTime = context.currentTime + start;
+  const endTime = startTime + duration;
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  volume.gain.setValueAtTime(0.0001, startTime);
+  volume.gain.exponentialRampToValueAtTime(gain, startTime + 0.015);
+  volume.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+  oscillator.connect(volume);
+  volume.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(endTime + 0.03);
+}
+
+function playClick() {
+  playTone({ frequency: 920, duration: 0.045, type: "triangle", gain: 0.035 });
+  playTone({ frequency: 520, duration: 0.035, type: "sine", gain: 0.018, start: 0.025 });
+}
+
+function playTensionSting() {
+  playTone({ frequency: 92, duration: 0.42, type: "sawtooth", gain: 0.06 });
+  playTone({ frequency: 138, duration: 0.36, type: "sawtooth", gain: 0.045, start: 0.06 });
+  playTone({ frequency: 277, duration: 0.22, type: "square", gain: 0.025, start: 0.12 });
+}
+
+function playWinChime() {
+  playTone({ frequency: 523.25, duration: 0.16, type: "sine", gain: 0.055 });
+  playTone({ frequency: 659.25, duration: 0.18, type: "sine", gain: 0.05, start: 0.13 });
+  playTone({ frequency: 783.99, duration: 0.24, type: "triangle", gain: 0.045, start: 0.28 });
 }
 
 function syncBrowserRoute() {
