@@ -8,11 +8,16 @@ let notice = "";
 const shownRoleReveals = new Set();
 let activeRoleReveal = "";
 let roleRevealTimer = null;
+let routeOverride = "";
+let lastRoutePath = "";
+let isHistoryNavigation = false;
 
 socket.on("state", (nextState) => {
   state = nextState;
   notice = "";
+  if (!isHistoryNavigation) routeOverride = "";
   maybeStartRoleReveal();
+  syncBrowserRoute();
   render();
 });
 
@@ -32,7 +37,8 @@ function emit(event, payload = {}) {
 }
 
 function page(shell) {
-  const phaseClass = state.room ? `phase-${state.room.phase}` : "phase-home";
+  const isHomeView = !state.room || routeOverride === "home";
+  const phaseClass = isHomeView ? "phase-home" : `phase-${state.room.phase}`;
   app.innerHTML = `
     <section class="screen ${phaseClass}">
       <div class="topbar">
@@ -40,7 +46,7 @@ function page(shell) {
           <p class="eyebrow">Social deduction party game</p>
           <h1>Alibi Night</h1>
         </div>
-        ${state.room ? `<div class="roomBadge">Room <strong>${state.room.code}</strong></div>` : ""}
+        ${isHomeView ? "" : `<div class="roomBadge">Room <strong>${state.room.code}</strong></div>`}
       </div>
       ${notice ? `<p class="notice">${notice}</p>` : ""}
       ${shell}
@@ -50,8 +56,8 @@ function page(shell) {
 }
 
 function render() {
-  if (!state.room) return renderHome();
-  const phase = state.room.phase;
+  const phase = routeOverride || state.room?.phase;
+  if (!state.room || phase === "home") return renderHome();
   if (phase === "lobby") return renderLobby();
   if (activeRoleReveal) return renderRoleReveal();
   if (phase === "alibi") return renderAlibi();
@@ -86,10 +92,12 @@ function renderHome() {
   `);
   app.querySelector("[data-action='create']").addEventListener("click", async () => {
     saveHomeForm();
+    if (!validateName()) return render();
     await emit("createRoom", { name: form.name });
   });
   app.querySelector("[data-action='join']").addEventListener("click", async () => {
     saveHomeForm();
+    if (!validateName()) return render();
     await emit("joinRoom", { name: form.name, code: form.code });
   });
 }
@@ -275,6 +283,12 @@ function saveHomeForm() {
   form.code = String(data.get("code") || "").toUpperCase();
 }
 
+function validateName() {
+  if (String(form.name || "").trim()) return true;
+  notice = "Type your name before creating or joining a room.";
+  return false;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -299,4 +313,42 @@ function maybeStartRoleReveal() {
   }, 2600);
 }
 
+function syncBrowserRoute() {
+  const route = currentRoute();
+  if (!route || route.path === lastRoutePath) return;
+  const method = lastRoutePath ? "pushState" : "replaceState";
+  history[method](route.state, "", route.path);
+  lastRoutePath = route.path;
+}
+
+function currentRoute() {
+  if (!state.room) {
+    return { path: "/", state: { phase: "home" } };
+  }
+
+  const phase = state.room.phase;
+  const path = `/room/${state.room.code}/${phase}`;
+  return {
+    path,
+    state: {
+      phase,
+      code: state.room.code,
+      round: state.room.round
+    }
+  };
+}
+
+window.addEventListener("popstate", (event) => {
+  isHistoryNavigation = true;
+  routeOverride = event.state?.phase || "home";
+  lastRoutePath = location.pathname;
+  clearTimeout(roleRevealTimer);
+  activeRoleReveal = "";
+  render();
+  setTimeout(() => {
+    isHistoryNavigation = false;
+  }, 0);
+});
+
+syncBrowserRoute();
 render();
