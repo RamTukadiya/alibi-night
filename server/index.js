@@ -33,6 +33,7 @@ app.get("*", (_req, res) => {
 io.on("connection", (socket) => {
   socket.on("createRoom", ({ name }, reply) => {
     try {
+      if (!cleanName(name)) throw new Error("Type your name before creating a room.");
       const code = makeRoomCode();
       const room = createRoom(code, socket.id, name);
       rooms.set(code, room);
@@ -48,6 +49,7 @@ io.on("connection", (socket) => {
   socket.on("joinRoom", ({ code, name }, reply) => {
     try {
       const normalizedCode = String(code || "").trim().toUpperCase();
+      if (!cleanName(name)) throw new Error("Type your name before joining a room.");
       const room = rooms.get(normalizedCode);
       if (!room) throw new Error("That room code was not found.");
       if (!canJoin(room)) throw new Error("That room is already playing or full.");
@@ -143,3 +145,4 @@ const port = process.env.PORT || 3000;
 server.listen(port, () => {
   console.log(`Alibi Night is running on http://localhost:${port}`);
 });
+r
