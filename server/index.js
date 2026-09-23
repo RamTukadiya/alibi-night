@@ -31,77 +31,104 @@ app.get("*", (_req, res) => {
 });
 
 io.on("connection", (socket) => {
-  socket.on("createRoom", ({ name }, reply) => {
+  socket.on("createRoom", ({ name, playerId }, reply) => {
     try {
+      if (!playerId) throw new Error("Missing player id.");
       if (!cleanName(name)) throw new Error("Type your name before creating a room.");
       const code = makeRoomCode();
-      const room = createRoom(code, socket.id, name);
+      const room = createRoom(code, playerId, name);
       rooms.set(code, room);
-      socket.join(code);
-      socket.data.roomCode = code;
-      reply?.({ ok: true, code, playerId: socket.id });
+      joinSocketToRoom(socket, code, playerId);
+      reply?.({ ok: true, code, playerId });
       broadcast(room);
     } catch (error) {
       reply?.({ ok: false, error: error.message });
     }
   });
 
-  socket.on("joinRoom", ({ code, name }, reply) => {
+  socket.on("joinRoom", ({ code, name, playerId }, reply) => {
     try {
+      if (!playerId) throw new Error("Missing player id.");
       const normalizedCode = String(code || "").trim().toUpperCase();
       if (!cleanName(name)) throw new Error("Type your name before joining a room.");
       const room = rooms.get(normalizedCode);
       if (!room) throw new Error("That room code was not found.");
-      if (!canJoin(room)) throw new Error("That room is already playing or full.");
 
-      room.players.set(socket.id, createPlayer(socket.id, cleanName(name)));
-      socket.join(normalizedCode);
-      socket.data.roomCode = normalizedCode;
-      reply?.({ ok: true, code: normalizedCode, playerId: socket.id });
+      if (!room.players.has(playerId) && !canJoin(room)) {
+        throw new Error("That room is already playing or full.");
+      }
+
+      if (!room.players.has(playerId)) {
+        room.players.set(playerId, createPlayer(playerId, cleanName(name)));
+      } else {
+        room.players.get(playerId).connected = true;
+      }
+
+      joinSocketToRoom(socket, normalizedCode, playerId);
+      reply?.({ ok: true, code: normalizedCode, playerId });
       broadcast(room);
     } catch (error) {
       reply?.({ ok: false, error: error.message });
     }
   });
 
-  socket.on("startGame", replyFor(socket, (room) => {
-    if (room.hostId !== socket.id) throw new Error("Only the host can start the game.");
+  socket.on("resumeSession", ({ code, playerId }, reply) => {
+    try {
+      const normalizedCode = String(code || "").trim().toUpperCase();
+      const room = rooms.get(normalizedCode);
+      if (!room) throw new Error("Room not found.");
+      if (!room.players.has(playerId)) throw new Error("Player not found in room.");
+
+      room.players.get(playerId).connected = true;
+      joinSocketToRoom(socket, normalizedCode, playerId);
+      reply?.({ ok: true, code: normalizedCode, playerId });
+      broadcast(room);
+    } catch (error) {
+      reply?.({ ok: false, error: error.message });
+    }
+  });
+
+  socket.on("startGame", replyFor(socket, (room, playerId) => {
+    if (room.hostId !== playerId) throw new Error("Only the host can start the game.");
     startGame(room);
   }));
 
   socket.on("submitAlibi", ({ text }, reply) => {
-    runWithRoom(socket, reply, (room) => submitAlibi(room, socket.id, text));
+    runWithRoom(socket, reply, (room, playerId) => submitAlibi(room, playerId, text));
   });
 
   socket.on("openVoting", replyFor(socket, (room) => openVoting(room)));
 
   socket.on("submitVote", ({ targetId }, reply) => {
-    runWithRoom(socket, reply, (room) => submitVote(room, socket.id, targetId));
+    runWithRoom(socket, reply, (room, playerId) => submitVote(room, playerId, targetId));
   });
 
-  socket.on("nextRound", replyFor(socket, (room) => {
-    if (room.hostId !== socket.id) throw new Error("Only the host can start the next round.");
+  socket.on("nextRound", replyFor(socket, (room, playerId) => {
+    if (room.hostId !== playerId) throw new Error("Only the host can start the next round.");
     nextRound(room);
   }));
 
-  socket.on("playAgain", replyFor(socket, (room) => {
-    if (room.hostId !== socket.id) throw new Error("Only the host can reset the room.");
+  socket.on("playAgain", replyFor(socket, (room, playerId) => {
+    if (room.hostId !== playerId) throw new Error("Only the host can reset the room.");
     resetRoom(room);
   }));
 
   socket.on("disconnect", () => {
     const room = getSocketRoom(socket);
     if (!room) return;
-    const player = room.players.get(socket.id);
+    const playerId = socket.data.playerId;
+    const player = room.players.get(playerId);
     if (player) player.connected = false;
-    if (room.phase === "lobby") room.players.delete(socket.id);
-    if (room.hostId === socket.id && room.players.size > 0) {
-      room.hostId = [...room.players.keys()][0];
-    }
-    if (room.players.size === 0) rooms.delete(room.code);
-    else broadcast(room);
+    broadcast(room);
   });
 });
+
+function joinSocketToRoom(socket, code, playerId) {
+  socket.join(code);
+  socket.join(playerId);
+  socket.data.roomCode = code;
+  socket.data.playerId = playerId;
+}
 
 function replyFor(socket, action) {
   return (_payload, reply) => runWithRoom(socket, reply, action);
@@ -111,7 +138,7 @@ function runWithRoom(socket, reply, action) {
   try {
     const room = getSocketRoom(socket);
     if (!room) throw new Error("Join or create a room first.");
-    action(room);
+    action(room, socket.data.playerId);
     reply?.({ ok: true });
     broadcast(room);
   } catch (error) {
