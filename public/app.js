@@ -27,8 +27,9 @@ function emit(event, payload = {}) {
 }
 
 function page(shell) {
+  const phaseClass = state.room ? `phase-${state.room.phase}` : "phase-home";
   app.innerHTML = `
-    <section class="screen">
+    <section class="screen ${phaseClass}">
       <div class="topbar">
         <div>
           <p class="eyebrow">Social deduction party game</p>
@@ -95,7 +96,11 @@ function renderLobby() {
     <section class="grid">
       <div class="panel">
         <p class="step">Lobby</p>
-        <h2>Share code ${room.code}</h2>
+        <div class="codeCard">
+          <span>Case file</span>
+          <strong>${room.code}</strong>
+        </div>
+        <h2>Share the room code</h2>
         <p>Players join from their own devices by entering a name and this room code. Start when you have 3 to 6 players.</p>
         <div class="players">${playerList(room.players)}</div>
         ${me.isHost ? `<button class="primary" data-action="start" ${room.players.length < room.minPlayers ? "disabled" : ""}>Start game</button>` : `<p class="waiting">Waiting for the host to start.</p>`}
@@ -146,8 +151,8 @@ function renderReveal() {
     <section class="panel wide">
       <p class="step">Alibis revealed</p>
       <h2>Read carefully. Then vote for the Suspect.</h2>
-      <div class="alibis">${room.alibis.map((item) => `
-        <article>
+      <div class="alibis revealStack">${room.alibis.map((item, index) => `
+        <article style="--i: ${index}">
           <strong>${escapeHtml(item.playerName)}</strong>
           <p>${escapeHtml(item.text)}</p>
         </article>
@@ -165,6 +170,7 @@ function renderVoting() {
     <section class="panel wide">
       <p class="step">Vote</p>
       <h2>Who is the Suspect?</h2>
+      <div class="countdown" aria-hidden="true"><span></span></div>
       <p>Detectives vote once. The Suspect waits and tries to look calm. The reveal happens when all Detectives have voted.</p>
       ${me.role === "Suspect" ? `<p class="waiting">You are the Suspect. Detectives are voting now.</p>` : me.hasVoted ? `<p class="success">Vote locked. Waiting for ${detectiveCount - room.votes.length} more.</p>` : `
         <div class="voteGrid">
@@ -208,10 +214,14 @@ function renderGameOver() {
 
 function resultView(result, footer) {
   return `
-    <section class="panel wide">
+    <section class="panel wide revealMoment">
       <p class="step">Round result</p>
       <h2>${result.winner} win this round.</h2>
-      <p>The Suspect was <strong>${escapeHtml(result.suspectName)}</strong>. ${result.correctVotes} of ${result.totalVotes} players voted correctly.</p>
+      <div class="suspectReveal">
+        <span>The Suspect was</span>
+        <strong>${escapeHtml(result.suspectName)}</strong>
+      </div>
+      <p>${result.correctVotes} of ${result.totalVotes} Detectives voted correctly.</p>
       <div class="alibis compact">${result.votes.map((vote) => `
         <article>
           <strong>${escapeHtml(vote.voterName)}</strong>
