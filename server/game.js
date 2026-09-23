@@ -32,7 +32,7 @@ export function createPlayer(id, name) {
 
 export function cleanName(name) {
   const cleaned = String(name || "").trim().replace(/\s+/g, " ");
-  return cleaned.slice(0, 18) || "Player";
+  return cleaned.slice(0, 18);
 }
 
 export function canJoin(room) {
