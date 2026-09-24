@@ -317,6 +317,9 @@ function playerList(players) {
 function bindInputs() {
   app.querySelectorAll("input").forEach((input) => {
     input.addEventListener("input", () => {
+      if (input.name === "code") {
+        input.value = input.value.toUpperCase();
+      }
       form[input.name] = input.name === "code" ? input.value.toUpperCase() : input.value;
     });
   });
