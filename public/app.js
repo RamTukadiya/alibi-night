@@ -25,6 +25,7 @@ app.addEventListener("click", (event) => {
 
 socket.on("state", (nextState) => {
   state = nextState;
+  isResuming = false;
   notice = "";
   if (!isHistoryNavigation) routeOverride = "";
   maybeStartRoleReveal();
@@ -436,6 +437,7 @@ async function resumeSavedSession() {
   const saved = readSession();
   if (!saved?.code || !saved?.playerId) {
     isResuming = false;
+    render();
     return;
   }
 
@@ -444,11 +446,11 @@ async function resumeSavedSession() {
     playerId: saved.playerId
   });
 
-  isResuming = false;
   if (!reply?.ok) {
+    isResuming = false;
     clearSession();
+    render();
   }
-  render();
 }
 
 function getOrCreatePlayerId() {
