@@ -323,7 +323,7 @@ function maybeStartRoleReveal() {
   if (shownRoleReveals.has(revealKey) || activeRoleReveal === revealKey) return;
 
   activeRoleReveal = revealKey;
-  playRoleRevealSound(me.role, revealKey);
+  playRoleRevealSound(state.me.role, revealKey);
   clearTimeout(roleRevealTimer);
   roleRevealTimer = setTimeout(() => {
     shownRoleReveals.add(revealKey);
