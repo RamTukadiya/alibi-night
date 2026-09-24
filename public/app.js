@@ -76,6 +76,7 @@ function page(shell) {
     isResuming = false;
     state = { room: null, me: null };
     routeOverride = "home";
+    form = { name: "", code: "", alibi: "" };
     render();
   });
 }
