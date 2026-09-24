@@ -77,6 +77,8 @@ function page(shell) {
     state = { room: null, me: null };
     routeOverride = "home";
     form = { name: "", code: "", alibi: "" };
+    history.pushState({ phase: "home" }, "", "/");
+    lastRoutePath = "/";
     render();
   });
 }
