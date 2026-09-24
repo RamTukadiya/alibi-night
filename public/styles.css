@@ -264,6 +264,21 @@ p {
   text-shadow: 0 0 18px rgba(232, 181, 79, 0.82), 0 0 46px rgba(232, 181, 79, 0.32);
 }
 
+.qrCode {
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  padding: 12px;
+  border: 1px solid rgba(255, 211, 122, 0.35);
+  border-radius: 8px;
+  background: rgba(4, 6, 12, 0.9);
+}
+
+.qrCode img {
+  display: block;
+  border-radius: 4px;
+}
+
 label {
   display: grid;
   gap: 8px;
