@@ -12,8 +12,10 @@ let routeOverride = "";
 let lastRoutePath = "";
 let isHistoryNavigation = false;
 let audioContext = null;
+let isResuming = false;
 const playedSoundCues = new Set();
 const SESSION_KEY = "alibiNightSession";
+isResuming = Boolean(readSession()?.code && readSession()?.playerId);
 
 app.addEventListener("click", (event) => {
   const button = event.target.closest("button");
@@ -70,6 +72,7 @@ function page(shell) {
 }
 
 function render() {
+  if (isResuming && !state.room) return renderLoading();
   const phase = routeOverride || state.room?.phase;
   if (!state.room || phase === "home") return renderHome();
   if (phase === "lobby") return renderLobby();
@@ -79,6 +82,20 @@ function render() {
   if (phase === "voting") return renderVoting();
   if (phase === "roundResult") return renderRoundResult();
   if (phase === "gameOver") return renderGameOver();
+}
+
+function renderLoading() {
+  app.innerHTML = `
+    <section class="screen phase-home">
+      <div class="topbar">
+        <div>
+          <p class="eyebrow">Social deduction party game</p>
+          <h1>Alibi Night</h1>
+        </div>
+      </div>
+      <p class="notice">Reconnecting to your game...</p>
+    </section>
+  `;
 }
 
 function renderHome() {
@@ -417,16 +434,21 @@ function syncBrowserRoute() {
 
 async function resumeSavedSession() {
   const saved = readSession();
-  if (!saved?.code || !saved?.playerId) return;
+  if (!saved?.code || !saved?.playerId) {
+    isResuming = false;
+    return;
+  }
 
   const reply = await emit("resumeSession", {
     code: saved.code,
     playerId: saved.playerId
   });
 
+  isResuming = false;
   if (!reply?.ok) {
     clearSession();
   }
+  render();
 }
 
 function getOrCreatePlayerId() {
