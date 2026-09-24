@@ -17,6 +17,12 @@ const playedSoundCues = new Set();
 const SESSION_KEY = "alibiNightSession";
 isResuming = Boolean(readSession()?.code && readSession()?.playerId);
 
+const joinMatch = location.pathname.match(/^\/join\/([A-Za-z0-9]{4})$/);
+if (joinMatch && !isResuming) {
+  form.code = joinMatch[1].toUpperCase();
+  history.replaceState({ phase: "home" }, "", "/");
+}
+
 app.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button || button.disabled) return;
@@ -159,8 +165,9 @@ function renderLobby() {
           <span>Case file</span>
           <strong>${room.code}</strong>
         </div>
+        <div id="qrCode" class="qrCode"></div>
         <h2>Share the room code</h2>
-        <p>Players join from their own devices by entering a name and this room code. Start when you have 3 to 6 players.</p>
+        <p>Players join from their own devices by entering a name and this room code, or by scanning the QR code above. Start when you have 3 to 6 players.</p>
         <div class="players">${playerList(room.players)}</div>
         ${me.isHost ? `<button class="primary" data-action="start" ${room.players.length < room.minPlayers ? "disabled" : ""}>Start game</button>` : `<p class="waiting">Waiting for the host to start.</p>`}
       </div>
@@ -171,6 +178,21 @@ function renderLobby() {
     </section>
   `);
   app.querySelector("[data-action='start']")?.addEventListener("click", () => emit("startGame"));
+  renderQrCode(room.code);
+}
+
+function renderQrCode(code) {
+  const container = document.getElementById("qrCode");
+  if (!container || typeof QRCode === "undefined") return;
+  container.innerHTML = "";
+  const joinUrl = `${location.origin}/join/${code}`;
+  new QRCode(container, {
+    text: joinUrl,
+    width: 132,
+    height: 132,
+    colorDark: "#0b0d14",
+    colorLight: "#e8b54f"
+  });
 }
 
 function renderAlibi() {
