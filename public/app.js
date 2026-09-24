@@ -63,13 +63,21 @@ function page(shell) {
           <p class="eyebrow">Social deduction party game</p>
           <h1>Alibi Night</h1>
         </div>
-        ${isHomeView ? "" : `<div class="roomBadge">Room <strong>${state.room.code}</strong></div>`}
+        ${isHomeView ? "" : `<div class="roomBadge">Room <strong>${state.room.code}</strong></div><button data-action="leave" type="button">Leave room</button>`}
       </div>
       ${notice ? `<p class="notice">${notice}</p>` : ""}
       ${shell}
     </section>
   `;
   bindInputs();
+  app.querySelector("[data-action='leave']")?.addEventListener("click", async () => {
+    await emit("leaveRoom");
+    clearSession();
+    isResuming = false;
+    state = { room: null, me: null };
+    routeOverride = "home";
+    render();
+  });
 }
 
 function render() {
