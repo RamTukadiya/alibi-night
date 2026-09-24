@@ -113,6 +113,33 @@ io.on("connection", (socket) => {
     resetRoom(room);
   }));
 
+  socket.on("leaveRoom", (_payload, reply) => {
+    try {
+      const room = getSocketRoom(socket);
+      if (room) {
+        const playerId = socket.data.playerId;
+        room.players.delete(playerId);
+        room.alibis.delete(playerId);
+        room.votes.delete(playerId);
+        if (room.hostId === playerId && room.players.size > 0) {
+          room.hostId = [...room.players.keys()][0];
+        }
+        socket.leave(room.code);
+        socket.leave(playerId);
+        if (room.players.size === 0) {
+          rooms.delete(room.code);
+        } else {
+          broadcast(room);
+        }
+      }
+      socket.data.roomCode = "";
+      socket.data.playerId = "";
+      reply?.({ ok: true });
+    } catch (error) {
+      reply?.({ ok: false, error: error.message });
+    }
+  });
+
   socket.on("disconnect", () => {
     const room = getSocketRoom(socket);
     if (!room) return;
