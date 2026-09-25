@@ -14,6 +14,7 @@ export function createRoom(code, hostId, hostName) {
     suspectId: "",
     players: new Map([[hostId, createPlayer(hostId, hostName)]]),
     alibis: new Map(),
+    questions: new Map(),
     votes: new Map(),
     roundResults: [],
     finalWinner: ""
@@ -60,6 +61,14 @@ export function publicRoom(room) {
       playerName: room.players.get(playerId)?.name || "Unknown",
       text
     })),
+    questions: [...room.questions.values()].map((entry) => ({
+      askerId: entry.askerId,
+      askerName: room.players.get(entry.askerId)?.name || "Unknown",
+      targetId: entry.targetId,
+      targetName: room.players.get(entry.targetId)?.name || "Unknown",
+      questionText: entry.questionText,
+      answerText: entry.answerText || ""
+    })),
     votes: [...room.votes.keys()],
     roundResults: room.roundResults,
     finalWinner: room.finalWinner
@@ -68,11 +77,17 @@ export function publicRoom(room) {
 
 export function privateState(room, playerId) {
   const player = room.players.get(playerId);
+  const askedAlready = [...room.questions.values()].some((entry) => entry.askerId === playerId);
+  const pendingAnswer = [...room.questions.values()].find(
+    (entry) => entry.targetId === playerId && !entry.answerText
+  );
   return {
     playerId,
     role: player?.role || "",
     isHost: room.hostId === playerId,
     hasSubmittedAlibi: room.alibis.has(playerId),
+    hasAskedQuestion: askedAlready,
+    pendingQuestionFromMe: pendingAnswer ? { askerName: room.players.get(pendingAnswer.askerId)?.name || "Unknown", questionText: pendingAnswer.questionText } : null,
     hasVoted: room.votes.has(playerId),
     votedFor: room.votes.get(playerId) || ""
   };
@@ -89,6 +104,7 @@ export function beginRound(room) {
   room.phase = "alibi";
   room.scenario = randomScenario();
   room.alibis.clear();
+  room.questions.clear();
   room.votes.clear();
   room.finalWinner = "";
 
@@ -110,8 +126,36 @@ export function submitAlibi(room, playerId, text) {
   }
 }
 
-export function openVoting(room) {
+export function openCrossExamine(room) {
   if (room.phase !== "reveal") throw new Error("Alibis have not been revealed yet.");
+  room.phase = "crossExamine";
+}
+
+export function submitQuestion(room, askerId, targetId, text) {
+  if (room.phase !== "crossExamine") throw new Error("Cross-examination is not open right now.");
+  if (!room.players.has(askerId) || !room.players.has(targetId)) throw new Error("Invalid question.");
+  if (askerId === targetId) throw new Error("You cannot question yourself.");
+  if ([...room.questions.values()].some((entry) => entry.askerId === askerId)) {
+    throw new Error("You have already asked your question this round.");
+  }
+  const questionText = String(text || "").trim().replace(/\s+/g, " ").slice(0, 100);
+  if (questionText.length < 3) throw new Error("Ask a slightly clearer question.");
+  room.questions.set(askerId, { askerId, targetId, questionText, answerText: "" });
+}
+
+export function submitAnswer(room, playerId, text) {
+  if (room.phase !== "crossExamine") throw new Error("Cross-examination is not open right now.");
+  const entry = [...room.questions.values()].find(
+    (item) => item.targetId === playerId && !item.answerText
+  );
+  if (!entry) throw new Error("No question is waiting for your answer.");
+  const answerText = String(text || "").trim().replace(/\s+/g, " ").slice(0, 100);
+  if (answerText.length < 1) throw new Error("Write a short answer.");
+  entry.answerText = answerText;
+}
+
+export function openVoting(room) {
+  if (room.phase !== "crossExamine") throw new Error("Cross-examination has not finished yet.");
   room.phase = "voting";
 }
 
@@ -175,6 +219,7 @@ export function resetRoom(room) {
   room.scenario = "";
   room.suspectId = "";
   room.alibis.clear();
+  room.questions.clear();
   room.votes.clear();
   room.roundResults = [];
   room.finalWinner = "";
