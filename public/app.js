@@ -190,8 +190,8 @@ function renderQrCode(code) {
     text: joinUrl,
     width: 132,
     height: 132,
-    colorDark: "#0b0d14",
-    colorLight: "#e8b54f"
+    colorDark: "#000000",
+    colorLight: "#ffffff"
   });
 }
 
@@ -294,9 +294,10 @@ function renderRoundResult() {
 function renderGameOver() {
   const { room, me } = state;
   const result = room.roundResults.at(-1);
+  const winnerClass = room.finalWinner === "Detectives" ? "detectivesWin" : "suspectsWin";
   page(`
     ${resultView(result, "")}
-    <section class="panel wide final">
+    <section class="panel wide final ${winnerClass}">
       <p class="step">Game over</p>
       <h2>${room.finalWinner} win the night.</h2>
       <div class="scoreboard">${room.roundResults.map((round) => `
