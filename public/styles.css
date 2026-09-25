@@ -597,6 +597,28 @@ form {
   }
 }
 
+.reconnecting {
+  display: grid;
+  place-items: center;
+  gap: 18px;
+  padding: 60px 0;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid rgba(232, 181, 79, 0.2);
+  border-top-color: var(--accent-hot, #e8b54f);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes alibiIn {
   to {
     opacity: 1;
