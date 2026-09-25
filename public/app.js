@@ -25,6 +25,8 @@ if (joinMatch && !isResuming) {
   history.replaceState({ phase: "home" }, "", "/");
 }
 
+let showIntro = !isResuming && !cameFromJoinLink;
+
 app.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button || button.disabled) return;
@@ -93,15 +95,40 @@ function page(shell) {
 
 function render() {
   if (isResuming && !state.room) return renderLoading();
+  if (showIntro && !state.room) return renderIntro();
   const phase = routeOverride || state.room?.phase;
   if (!state.room || phase === "home") return renderHome();
   if (phase === "lobby") return renderLobby();
   if (activeRoleReveal) return renderRoleReveal();
   if (phase === "alibi") return renderAlibi();
   if (phase === "reveal") return renderReveal();
+  if (phase === "crossExamine") return renderCrossExamine();
   if (phase === "voting") return renderVoting();
   if (phase === "roundResult") return renderRoundResult();
   if (phase === "gameOver") return renderGameOver();
+}
+
+function renderIntro() {
+  app.innerHTML = `
+    <section class="screen phase-home introScreen">
+      <div class="topbar">
+        <div>
+          <p class="eyebrow">Social deduction party game</p>
+          <h1>Alibi Night</h1>
+        </div>
+      </div>
+      <div class="introCard">
+        <p>1. One player is secretly the Suspect. Everyone else is a Detective.</p>
+        <p>2. Each round, write an alibi, question a player, then vote on who's lying.</p>
+        <p>3. Detectives win with a majority vote. The Suspect wins by blending in.</p>
+        <button class="primary" data-action="startPlaying" type="button">Let's play</button>
+      </div>
+    </section>
+  `;
+  app.querySelector("[data-action='startPlaying']").addEventListener("click", () => {
+    showIntro = false;
+    render();
+  });
 }
 
 function renderLoading() {
@@ -127,6 +154,7 @@ function renderHome() {
       <div>
         <h2>${cameFromJoinLink ? "Join the case." : "Build a room, share the code, catch the Suspect."}</h2>
         <p>${cameFromJoinLink ? "You scanned an invite. Type your name to join the room." : "Each player opens this site on their own phone or laptop. No login, no signup."}</p>
+        ${cameFromJoinLink ? "" : `<p class="tip">Best with 4-6 friends on a call together, or in the same room, phones out.</p>`}
       </div>
       <form class="panel" id="homeForm">
         <label>Your name
@@ -260,16 +288,70 @@ function renderReveal() {
   page(`
     <section class="panel wide">
       <p class="step">Alibis revealed</p>
-      <h2>Read carefully. Then vote for the Suspect.</h2>
+      <h2>Read carefully. Then question a suspect before voting.</h2>
       <div class="alibis revealStack">${room.alibis.map((item, index) => `
         <article style="--i: ${index}">
           <strong>${escapeHtml(item.playerName)}</strong>
           <p>${escapeHtml(item.text)}</p>
         </article>
       `).join("")}</div>
-      <button class="primary" data-action="vote">Start voting</button>
+      <button class="primary" data-action="crossExamine">Begin cross-examination</button>
     </section>
   `);
+  app.querySelector("[data-action='crossExamine']").addEventListener("click", () => emit("openCrossExamine"));
+}
+
+function renderCrossExamine() {
+  const { room, me } = state;
+  const otherPlayers = room.players.filter((player) => player.id !== me.playerId);
+  page(`
+    <section class="panel wide">
+      <p class="step">Cross-examine</p>
+      <h2>Ask one player a question. Everyone sees the answer.</h2>
+      <div class="alibis compact">${room.questions.map((q) => `
+        <article>
+          <strong>${escapeHtml(q.askerName)} asked ${escapeHtml(q.targetName)}</strong>
+          <p>"${escapeHtml(q.questionText)}"</p>
+          ${q.answerText ? `<p class="success">Answer: "${escapeHtml(q.answerText)}"</p>` : `<p class="waiting">Waiting for an answer...</p>`}
+        </article>
+      `).join("") || "<p>No questions asked yet.</p>"}</div>
+
+      ${me.pendingQuestionFromMe ? `
+        <form id="answerForm">
+          <label>${escapeHtml(me.pendingQuestionFromMe.askerName)} asked: "${escapeHtml(me.pendingQuestionFromMe.questionText)}"
+            <input name="answer" maxlength="100" placeholder="Your answer" required />
+          </label>
+          <button class="primary">Submit answer</button>
+        </form>
+      ` : ""}
+
+      ${!me.hasAskedQuestion ? `
+        <form id="questionForm">
+          <label>Ask a question to
+            <select name="target">
+              ${otherPlayers.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Your question
+            <input name="question" maxlength="100" placeholder="Who else was with you?" required />
+          </label>
+          <button class="primary">Ask</button>
+        </form>
+      ` : `<p class="success">You've asked your question this round.</p>`}
+
+      <button class="primary" data-action="vote">Proceed to voting</button>
+    </section>
+  `);
+  app.querySelector("#answerForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = new FormData(event.currentTarget).get("answer");
+    await emit("submitAnswer", { text });
+  });
+  app.querySelector("#questionForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    await emit("submitQuestion", { targetId: data.get("target"), text: data.get("question") });
+  });
   app.querySelector("[data-action='vote']").addEventListener("click", () => emit("openVoting"));
 }
 
