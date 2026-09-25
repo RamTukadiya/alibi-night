@@ -111,7 +111,10 @@ function renderLoading() {
           <h1>Alibi Night</h1>
         </div>
       </div>
-      <p class="notice">Reconnecting to your game...</p>
+      <div class="reconnecting">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="notice">Reconnecting to your game...</p>
+      </div>
     </section>
   `;
 }
