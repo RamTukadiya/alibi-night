@@ -9,12 +9,15 @@ import {
   createPlayer,
   createRoom,
   nextRound,
+  openCrossExamine,
   openVoting,
   privateState,
   publicRoom,
   resetRoom,
   startGame,
   submitAlibi,
+  submitAnswer,
+  submitQuestion,
   submitVote
 } from "./game.js";
 
@@ -99,6 +102,16 @@ io.on("connection", (socket) => {
 
   socket.on("openVoting", replyFor(socket, (room) => openVoting(room)));
 
+  socket.on("openCrossExamine", replyFor(socket, (room) => openCrossExamine(room)));
+
+  socket.on("submitQuestion", ({ targetId, text }, reply) => {
+    runWithRoom(socket, reply, (room, playerId) => submitQuestion(room, playerId, targetId, text));
+  });
+
+  socket.on("submitAnswer", ({ text }, reply) => {
+    runWithRoom(socket, reply, (room, playerId) => submitAnswer(room, playerId, text));
+  });
+
   socket.on("submitVote", ({ targetId }, reply) => {
     runWithRoom(socket, reply, (room, playerId) => submitVote(room, playerId, targetId));
   });
@@ -120,6 +133,7 @@ io.on("connection", (socket) => {
         const playerId = socket.data.playerId;
         room.players.delete(playerId);
         room.alibis.delete(playerId);
+        room.questions.delete(playerId);
         room.votes.delete(playerId);
         if (room.hostId === playerId && room.players.size > 0) {
           room.hostId = [...room.players.keys()][0];
