@@ -179,9 +179,9 @@ function renderLobby() {
           <span>Case file</span>
           <strong>${room.code}</strong>
         </div>
-        <div id="qrCode" class="qrCode"></div>
+        ${me.isHost ? `<div id="qrCode" class="qrCode"></div>` : ""}
         <h2>Share the room code</h2>
-        <p>Players join from their own devices by entering a name and this room code, or by scanning the QR code above. Start when you have 3 to 6 players.</p>
+        <p>${me.isHost ? "Players join from their own devices by entering a name and this room code, or by scanning the QR code above." : "Enter your name and this room code from your own device."} Start when you have 3 to 6 players.</p>
         <div class="players">${playerList(room.players)}</div>
         ${me.isHost ? `<button class="primary" data-action="start" ${room.players.length < room.minPlayers ? "disabled" : ""}>Start game</button>` : `<p class="waiting">Waiting for the host to start.</p>`}
       </div>
@@ -192,7 +192,7 @@ function renderLobby() {
     </section>
   `);
   app.querySelector("[data-action='start']")?.addEventListener("click", () => emit("startGame"));
-  renderQrCode(room.code);
+  if (me.isHost) renderQrCode(room.code);
 }
 
 function renderQrCode(code) {
