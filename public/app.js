@@ -18,8 +18,10 @@ const SESSION_KEY = "alibiNightSession";
 isResuming = Boolean(readSession()?.code && readSession()?.playerId);
 
 const joinMatch = location.pathname.match(/^\/join\/([A-Za-z0-9]{4})$/);
+let cameFromJoinLink = false;
 if (joinMatch && !isResuming) {
   form.code = joinMatch[1].toUpperCase();
+  cameFromJoinLink = true;
   history.replaceState({ phase: "home" }, "", "/");
 }
 
@@ -123,26 +125,35 @@ function renderHome() {
   page(`
     <section class="hero">
       <div>
-        <h2>Build a room, share the code, catch the Suspect.</h2>
-        <p>Each player opens this site on their own phone or laptop. No login, no signup.</p>
+        <h2>${cameFromJoinLink ? "Join the case." : "Build a room, share the code, catch the Suspect."}</h2>
+        <p>${cameFromJoinLink ? "You scanned an invite. Type your name to join the room." : "Each player opens this site on their own phone or laptop. No login, no signup."}</p>
       </div>
       <form class="panel" id="homeForm">
         <label>Your name
           <input name="name" maxlength="18" value="${escapeHtml(form.name)}" placeholder="Mara" required />
         </label>
-        <div class="actions">
-          <button class="primary" data-action="create" type="button">Create room</button>
-        </div>
-        <div class="joinRow">
-          <label>Room code
-            <input name="code" maxlength="4" value="${escapeHtml(form.code)}" placeholder="K7Q4" />
-          </label>
-          <button data-action="join" type="button">Join</button>
-        </div>
+        ${cameFromJoinLink ? `
+          <div class="joinRow">
+            <label>Room code
+              <input name="code" maxlength="4" value="${escapeHtml(form.code)}" placeholder="K7Q4" readonly />
+            </label>
+            <button class="primary" data-action="join" type="button">Join</button>
+          </div>
+        ` : `
+          <div class="actions">
+            <button class="primary" data-action="create" type="button">Create room</button>
+          </div>
+          <div class="joinRow">
+            <label>Room code
+              <input name="code" maxlength="4" value="${escapeHtml(form.code)}" placeholder="K7Q4" />
+            </label>
+            <button data-action="join" type="button">Join</button>
+          </div>
+        `}
       </form>
     </section>
   `);
-  app.querySelector("[data-action='create']").addEventListener("click", async () => {
+  app.querySelector("[data-action='create']")?.addEventListener("click", async () => {
     saveHomeForm();
     if (!validateName()) return render();
     const playerId = getOrCreatePlayerId();
