@@ -223,6 +223,34 @@ p {
   align-items: end;
 }
 
+.tip {
+  margin-top: 10px;
+  color: var(--accent-hot, #e8b54f);
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.introCard {
+  display: grid;
+  gap: 16px;
+  max-width: 560px;
+  margin: 40px auto;
+  padding: 28px;
+  border: 1px solid rgba(255, 211, 122, 0.4);
+  border-radius: 8px;
+  background: rgba(4, 6, 12, 0.92);
+  text-align: left;
+}
+
+.introCard p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.introCard button {
+  margin-top: 8px;
+}
+
 .panel,
 .rules {
   border-radius: 8px;
