@@ -115,8 +115,12 @@ button:disabled {
 .topRight {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
+}
+
+.topRight .ghost {
+  margin-left: 4px;
 }
 
 #app,
