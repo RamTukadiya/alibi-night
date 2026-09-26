@@ -73,7 +73,7 @@ function page(shell) {
           <p class="eyebrow">Social deduction party game</p>
           <h1>Alibi Night</h1>
         </div>
-        ${isHomeView ? "" : `<div class="roomBadge">Room <strong>${state.room.code}</strong></div><button data-action="leave" type="button">Leave room</button>`}
+        ${isHomeView ? "" : `<div class="topRight"><div class="roomBadge">Room <strong>${state.room.code}</strong></div><button class="ghost" data-action="leave" type="button">Leave room</button></div>`}
       </div>
       ${notice ? `<p class="notice">${notice}</p>` : ""}
       ${shell}
@@ -316,28 +316,30 @@ function renderCrossExamine() {
         </article>
       `).join("") || "<p>No questions asked yet.</p>"}</div>
 
-      ${me.pendingQuestionFromMe ? `
-        <form id="answerForm">
-          <label>${escapeHtml(me.pendingQuestionFromMe.askerName)} asked: "${escapeHtml(me.pendingQuestionFromMe.questionText)}"
-            <input name="answer" maxlength="100" placeholder="Your answer" required />
-          </label>
-          <button class="primary">Submit answer</button>
-        </form>
-      ` : ""}
+      <div class="crossExamineForms">
+        ${me.pendingQuestionFromMe ? `
+          <form id="answerForm">
+            <label>${escapeHtml(me.pendingQuestionFromMe.askerName)} asked: "${escapeHtml(me.pendingQuestionFromMe.questionText)}"
+              <input name="answer" maxlength="100" placeholder="Your answer" required />
+            </label>
+            <button class="primary">Submit answer</button>
+          </form>
+        ` : ""}
 
-      ${!me.hasAskedQuestion ? `
-        <form id="questionForm">
-          <label>Ask a question to
-            <select name="target">
-              ${otherPlayers.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}
-            </select>
-          </label>
-          <label>Your question
-            <input name="question" maxlength="100" placeholder="Who else was with you?" required />
-          </label>
-          <button class="primary">Ask</button>
-        </form>
-      ` : `<p class="success">You've asked your question this round.</p>`}
+        ${!me.hasAskedQuestion ? `
+          <form id="questionForm">
+            <label>Ask a question to
+              <select name="target">
+                ${otherPlayers.map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("")}
+              </select>
+            </label>
+            <label>Your question
+              <input name="question" maxlength="100" placeholder="Who else was with you?" required />
+            </label>
+            <button class="primary">Ask</button>
+          </form>
+        ` : `<p class="success">You've asked your question this round.</p>`}
+      </div>
 
       <button class="primary" data-action="vote">Proceed to voting</button>
     </section>
